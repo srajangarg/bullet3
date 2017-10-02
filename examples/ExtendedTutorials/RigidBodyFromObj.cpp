@@ -74,7 +74,7 @@ void RigidBodyFromObjExample::initPhysics()
 	}
 
 	//load our obj mesh
-	const char* fileName = "teddy.obj";//sphere8.obj";//sponza_closed.obj";//sphere8.obj";
+	const char* fileName = "table.obj";//sphere8.obj";//sponza_closed.obj";//sphere8.obj";
     char relativeFileName[1024];
     if (b3ResourcePath::findResourcePath(fileName, relativeFileName, 1024))
     {

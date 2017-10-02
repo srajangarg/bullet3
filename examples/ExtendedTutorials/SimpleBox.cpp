@@ -25,7 +25,10 @@ subject to the following restrictions:
 #include "LinearMath/btIDebugDraw.h"
 #include "../../Extras/VHACD/public/VHACD.h"
 #include "../SoftDemo/BunnyMesh.h"
-#include "../SoftDemo/TorusMesh.h"
+// #include "../SoftDemo/TorusMesh.h"
+#include "../SoftDemo/Table.h"
+#include "../SoftDemo/TableOg.h"
+#include <iostream>
 
 
 struct SimpleBoxExample : public CommonRigidBodyBase
@@ -37,8 +40,7 @@ struct SimpleBoxExample : public CommonRigidBodyBase
 	virtual ~SimpleBoxExample(){}
 	virtual void initPhysics();
 	virtual void renderScene();
-	virtual void doConvexDecomposition(const btVector3& offset,
-		const btScalar* points, unsigned int stridePoints, unsigned int countPoints,
+	virtual void doConvexDecomposition(const btScalar* points, unsigned int stridePoints, unsigned int countPoints,
 		const int* triangles, unsigned int strideTriangles, unsigned int countTriangles);
 	void resetCamera()
 	{
@@ -50,7 +52,7 @@ struct SimpleBoxExample : public CommonRigidBodyBase
 	}
 };
 
-void SimpleBoxExample::doConvexDecomposition(const btVector3& offset,
+void SimpleBoxExample::doConvexDecomposition(
 	const btScalar* points, unsigned int stridePoints, unsigned int countPoints,
 	const int* triangles, unsigned int strideTriangles, unsigned int countTriangles)
 {
@@ -64,6 +66,7 @@ void SimpleBoxExample::doConvexDecomposition(const btVector3& offset,
 	{
 		// Add the resulting convex shapes to a compound shape
 		btCompoundShape* compoundShape = new btCompoundShape();
+		btVector3 fcentroid(0,0,0);
 
 		unsigned int nConvexHulls = hacd->GetNConvexHulls();
 		VHACD::IVHACD::ConvexHull convexHull;
@@ -71,24 +74,22 @@ void SimpleBoxExample::doConvexDecomposition(const btVector3& offset,
 		{
 			hacd->GetConvexHull(ch, convexHull);
 			unsigned int nDoubles = convexHull.m_nPoints * 3;
-			unsigned int i;
+			std::cout<< ch << " " << convexHull.m_nPoints << std::endl;
 
 			// Calculate centroid (center of mass)
 			btVector3 centroid(0,0,0);
-			for (i = 0; i < nDoubles; i += 3)
-			{
-				centroid += btVector3(
-					(btScalar)convexHull.m_points[i],
-					(btScalar)convexHull.m_points[i + 1],
-					(btScalar)convexHull.m_points[i + 2]);
-			}
-			centroid /= (btScalar)convexHull.m_nTriangles;
-
+			for (unsigned int i = 0; i < nDoubles; i += 3)
+				centroid += btVector3((btScalar)convexHull.m_points[i],
+									  (btScalar)convexHull.m_points[i + 1],
+						  			  (btScalar)convexHull.m_points[i + 2]);
+			centroid /= (btScalar)convexHull.m_nPoints;
+			if (ch == 0)
+				fcentroid = centroid;
 
 			// Create convex shape
 			// Adjust points such that the centroid is at (0,0,0)
-			btConvexHullShape* convexShape = convexShape = new btConvexHullShape();
-			for (i = 0; i < nDoubles; i += 3)
+			btConvexHullShape* convexShape  = new btConvexHullShape();
+			for (unsigned int i = 0; i < nDoubles; i += 3)
 			{
 				btVector3 point(
 					(btScalar)convexHull.m_points[i],
@@ -100,24 +101,23 @@ void SimpleBoxExample::doConvexDecomposition(const btVector3& offset,
 			convexShape->recalcLocalAabb();
 			m_collisionShapes.push_back(convexShape);
 
-
 			// Append to the compound shape
 			btTransform transform;
 			transform.setIdentity();
-			transform.setOrigin(centroid);
+			transform.setOrigin(centroid - fcentroid);
 			compoundShape->addChildShape(transform, convexShape);
 
-
 			// Also create a separate body for each convex shape
-			// transform.setOrigin(offset + btVector3(3,0,0) + centroid);
+			// transform.setIdentity();
+			// transform.setOrigin(btVector3(0,0,0));// + centroid);
 			// createRigidBody(0.1f, transform, convexShape);
 		}
 
 		m_collisionShapes.push_back(compoundShape);
-		btTransform transform;
-		transform.setIdentity();
-		transform.setOrigin(offset + btVector3(-3,0,0));
-		createRigidBody(1.0f, transform, compoundShape);
+		btTransform tf;
+		tf.setIdentity();
+		tf.setOrigin(btVector3(0,10,0));
+		createRigidBody(1.0 , tf, compoundShape);
 	}
 
 	hacd->Clean();
@@ -147,36 +147,8 @@ void SimpleBoxExample::initPhysics()
 		createRigidBody(mass,groundTransform,groundShape, btVector4(0,0,1,1));
 	}
 
-	doConvexDecomposition(btVector3(0,0.5f,2),
-			&gVerticesBunny[0], 3, BUNNY_NUM_VERTICES,
-			gIndicesBunny[0], 3, BUNNY_NUM_TRIANGLES);
-	// {
-	// 	//create a few dynamic rigidbodies
-	// 	// Re-using the same collision is better for memory usage and performance
- //        btBoxShape* colShape = createBoxShape(btVector3(1,1,1));
-		 
-	// 	m_collisionShapes.push_back(colShape);
-
-	// 	/// Create Dynamic Objects
-	// 	btTransform startTransform;
-	// 	startTransform.setIdentity();
-
-	// 	btScalar	mass(1.f);
-
-	// 	//rigidbody is dynamic if and only if mass is non zero, otherwise static
-	// 	bool isDynamic = (mass != 0.f);
-
-	// 	btVector3 localInertia(0,0,0);
-	// 	if (isDynamic)
-	// 		colShape->calculateLocalInertia(mass,localInertia);
-
-
-	// 	startTransform.setOrigin(btVector3(
-	// 							 btScalar(0),
-	// 							 btScalar(20),
-	// 							 btScalar(0)));
-	// 	createRigidBody(mass,startTransform,colShape);		 
-	// }
+	doConvexDecomposition(&gVerticesTABLE[0], 3, TABLE_NUM_VERTICES,
+			gIndicesTABLE[0], 3, TABLE_NUM_TRIANGLES);
 
 	m_guiHelper->autogenerateGraphicsObjects(m_dynamicsWorld);
 }
