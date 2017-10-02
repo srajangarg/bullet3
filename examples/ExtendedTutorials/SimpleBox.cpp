@@ -124,6 +124,166 @@ void SimpleBoxExample::doConvexDecomposition(
 	hacd->Release();
 }
 
+
+const int CUBES = 154;
+btVector3 pos[CUBES] = {
+btVector3(0, 0, 0),
+btVector3(0, 0, 1),
+btVector3(0, 0, 2),
+btVector3(0, 0, 3),
+btVector3(0, 0, 4),
+btVector3(0, 0, 5),
+btVector3(0, 0, 6),
+btVector3(0, 0, 7),
+btVector3(0, 0, 8),
+btVector3(0, 0, 9),
+btVector3(1, 0, 0),
+btVector3(1, 0, 1),
+btVector3(1, 0, 2),
+btVector3(1, 0, 3),
+btVector3(1, 0, 4),
+btVector3(1, 0, 5),
+btVector3(1, 0, 6),
+btVector3(1, 0, 7),
+btVector3(1, 0, 8),
+btVector3(1, 0, 9),
+btVector3(2, 0, 0),
+btVector3(2, 0, 1),
+btVector3(2, 0, 2),
+btVector3(2, 0, 3),
+btVector3(2, 0, 4),
+btVector3(2, 0, 5),
+btVector3(2, 0, 6),
+btVector3(2, 0, 7),
+btVector3(2, 0, 8),
+btVector3(2, 0, 9),
+btVector3(3, -8, 5),
+btVector3(3, -8, 6),
+btVector3(3, -8, 7),
+btVector3(3, -8, 8),
+btVector3(3, -7, 5),
+btVector3(3, -7, 6),
+btVector3(3, -7, 7),
+btVector3(3, -7, 8),
+btVector3(3, -6, 5),
+btVector3(3, -6, 6),
+btVector3(3, -6, 7),
+btVector3(3, -6, 8),
+btVector3(3, -5, 5),
+btVector3(3, -5, 6),
+btVector3(3, -5, 7),
+btVector3(3, -5, 8),
+btVector3(3, -4, 5),
+btVector3(3, -4, 6),
+btVector3(3, -4, 7),
+btVector3(3, -4, 8),
+btVector3(3, -3, 5),
+btVector3(3, -3, 6),
+btVector3(3, -3, 7),
+btVector3(3, -3, 8),
+btVector3(3, -2, 5),
+btVector3(3, -2, 6),
+btVector3(3, -2, 7),
+btVector3(3, -2, 8),
+btVector3(3, -1, 5),
+btVector3(3, -1, 6),
+btVector3(3, -1, 7),
+btVector3(3, -1, 8),
+btVector3(3, 0, 0),
+btVector3(3, 0, 1),
+btVector3(3, 0, 2),
+btVector3(3, 0, 3),
+btVector3(3, 0, 4),
+btVector3(3, 0, 5),
+btVector3(3, 0, 6),
+btVector3(3, 0, 7),
+btVector3(3, 0, 8),
+btVector3(3, 0, 9),
+btVector3(4, -8, 5),
+btVector3(4, -8, 6),
+btVector3(4, -8, 7),
+btVector3(4, -8, 8),
+btVector3(4, -7, 5),
+btVector3(4, -7, 6),
+btVector3(4, -7, 7),
+btVector3(4, -7, 8),
+btVector3(4, -6, 5),
+btVector3(4, -6, 6),
+btVector3(4, -6, 7),
+btVector3(4, -6, 8),
+btVector3(4, -5, 5),
+btVector3(4, -5, 6),
+btVector3(4, -5, 7),
+btVector3(4, -5, 8),
+btVector3(4, -4, 5),
+btVector3(4, -4, 6),
+btVector3(4, -4, 7),
+btVector3(4, -4, 8),
+btVector3(4, -3, 5),
+btVector3(4, -3, 6),
+btVector3(4, -3, 7),
+btVector3(4, -3, 8),
+btVector3(4, -2, 5),
+btVector3(4, -2, 6),
+btVector3(4, -2, 7),
+btVector3(4, -2, 8),
+btVector3(4, -1, 5),
+btVector3(4, -1, 6),
+btVector3(4, -1, 7),
+btVector3(4, -1, 8),
+btVector3(4, 0, 0),
+btVector3(4, 0, 1),
+btVector3(4, 0, 2),
+btVector3(4, 0, 3),
+btVector3(4, 0, 4),
+btVector3(4, 0, 5),
+btVector3(4, 0, 6),
+btVector3(4, 0, 7),
+btVector3(4, 0, 8),
+btVector3(4, 0, 9),
+btVector3(5, 0, 0),
+btVector3(5, 0, 1),
+btVector3(5, 0, 2),
+btVector3(5, 0, 3),
+btVector3(5, 0, 4),
+btVector3(5, 0, 5),
+btVector3(5, 0, 6),
+btVector3(5, 0, 7),
+btVector3(5, 0, 8),
+btVector3(5, 0, 9),
+btVector3(6, 0, 0),
+btVector3(6, 0, 1),
+btVector3(6, 0, 2),
+btVector3(6, 0, 3),
+btVector3(6, 0, 4),
+btVector3(6, 0, 5),
+btVector3(6, 0, 6),
+btVector3(6, 0, 7),
+btVector3(6, 0, 8),
+btVector3(6, 0, 9),
+btVector3(7, 0, 0),
+btVector3(7, 0, 1),
+btVector3(7, 0, 2),
+btVector3(7, 0, 3),
+btVector3(7, 0, 4),
+btVector3(7, 0, 5),
+btVector3(7, 0, 6),
+btVector3(7, 0, 7),
+btVector3(7, 0, 8),
+btVector3(7, 0, 9),
+btVector3(8, 0, 0),
+btVector3(8, 0, 1),
+btVector3(8, 0, 2),
+btVector3(8, 0, 3),
+btVector3(8, 0, 4),
+btVector3(8, 0, 5),
+btVector3(8, 0, 6),
+btVector3(8, 0, 7),
+btVector3(8, 0, 8),
+btVector3(8, 0, 9),
+};
+
+
 void SimpleBoxExample::initPhysics()
 {
 	m_guiHelper->setUpAxis(1);
@@ -147,8 +307,53 @@ void SimpleBoxExample::initPhysics()
 		createRigidBody(mass,groundTransform,groundShape, btVector4(0,0,1,1));
 	}
 
-	doConvexDecomposition(&gVerticesTABLE[0], 3, TABLE_NUM_VERTICES,
-			gIndicesTABLE[0], 3, TABLE_NUM_TRIANGLES);
+	// doConvexDecomposition(&gVerticesTABLE[0], 3, TABLE_NUM_VERTICES,
+	// 		gIndicesTABLE[0], 3, TABLE_NUM_TRIANGLES);
+
+	{
+		btCompoundShape* compoundShape = new btCompoundShape();
+		btBoxShape* cube  = new btBoxShape(btVector3(0.5, 0.5, 0.5));
+		m_collisionShapes.push_back(cube);
+		btTransform transform;
+		
+		// for (int i = 0; i < CUBES; i++)
+		// {
+		transform.setIdentity();
+		transform.setOrigin(btVector3(0, 0, 0));
+		compoundShape->addChildShape(transform, cube);
+
+		transform.setIdentity();
+		transform.setOrigin(btVector3(0, 1, 0));
+		compoundShape->addChildShape(transform, cube);
+
+		transform.setIdentity();
+		transform.setOrigin(btVector3(0, 2, 0));
+		compoundShape->addChildShape(transform, cube);
+
+		transform.setIdentity();
+		transform.setOrigin(btVector3(0, 1, 1));
+		compoundShape->addChildShape(transform, cube);
+
+
+		transform.setIdentity();
+		transform.setOrigin(btVector3(0, 10, 0));
+		btScalar masses[4]={1,1,1,1};
+		btTransform principal;
+		btVector3 inertia;
+		compoundShape->calculatePrincipalAxisTransform(masses,principal,inertia);
+		btCompoundShape* compound2 = new btCompoundShape();
+		m_collisionShapes.push_back(compound2);
+#if 0
+		compound2->addChildShape(principal.inverse(), compoundShape);
+#else	
+		for (int i=0;i<compoundShape->getNumChildShapes();i++)
+		{
+			compound2->addChildShape(compoundShape->getChildTransform(i)*principal.inverse(),compoundShape->getChildShape(i));
+		}
+#endif
+		delete compoundShape;
+		createRigidBody(1.0 , transform, compound2);
+	}
 
 	m_guiHelper->autogenerateGraphicsObjects(m_dynamicsWorld);
 }
