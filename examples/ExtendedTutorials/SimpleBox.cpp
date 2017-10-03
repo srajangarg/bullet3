@@ -29,6 +29,9 @@ subject to the following restrictions:
 #include "../SoftDemo/Table.h"
 #include "../SoftDemo/TableOg.h"
 #include <iostream>
+#include <fstream>
+#include <vector>
+using namespace std;
 
 
 struct SimpleBoxExample : public CommonRigidBodyBase
@@ -40,248 +43,69 @@ struct SimpleBoxExample : public CommonRigidBodyBase
 	virtual ~SimpleBoxExample(){}
 	virtual void initPhysics();
 	virtual void renderScene();
-	virtual void doConvexDecomposition(const btScalar* points, unsigned int stridePoints, unsigned int countPoints,
-		const int* triangles, unsigned int strideTriangles, unsigned int countTriangles);
+	// virtual void doConvexDecomposition(const btScalar* points, unsigned int stridePoints, unsigned int countPoints,
+	// 	const int* triangles, unsigned int strideTriangles, unsigned int countTriangles);
 	void resetCamera()
 	{
-		float dist = 41;
+		float dist = 60;
 		float pitch = -35;
 		float yaw = 52;
-		float targetPos[3]={0,0.46,0};
+		float targetPos[3]={0,0,0};
 		m_guiHelper->resetCamera(dist,yaw,pitch,targetPos[0],targetPos[1],targetPos[2]);
 	}
 };
 
-void SimpleBoxExample::doConvexDecomposition(
-	const btScalar* points, unsigned int stridePoints, unsigned int countPoints,
-	const int* triangles, unsigned int strideTriangles, unsigned int countTriangles)
+void read_binvox(string file, char* data)
 {
-	VHACD::IVHACD* hacd = VHACD::CreateVHACD();
-	VHACD::IVHACD::Parameters params = VHACD::IVHACD::Parameters();
-	params.m_oclAcceleration = false;
-	bool res = hacd->Compute(points, stridePoints, countPoints,
-		triangles, strideTriangles, countTriangles, params);
+	ifstream infile(file.c_str());
+	infile.seekg(0, ios::end);
+	size_t file_size_in_byte = infile.tellg();
+	infile.seekg(0, ios::beg);
 
-	if (res)
+	string line;
+	for (int i = 0; i < 5; i++)
+		getline(infile, line);
+	file_size_in_byte -= infile.tellg();
+
+	cout<<"----------"<<endl;
+	cout<<file_size_in_byte<<endl;
+	cout<<"----------"<<endl;
+	char* buf = new char[file_size_in_byte];
+	infile.read(buf, file_size_in_byte);
+
+	int run = 0;
+	for (int i = 0; i < file_size_in_byte; i += 2)
+		for (int j = 0; j < (unsigned char)buf[i+1]; j++)
+			data[run++] = (unsigned char)buf[i];
+
+	char t[64 * 64];
+
+	for (int i = 0; i < 64; i++)
 	{
-		// Add the resulting convex shapes to a compound shape
-		btCompoundShape* compoundShape = new btCompoundShape();
-		btVector3 fcentroid(0,0,0);
+		for (int j = 0; j < 64; j++)
+			for (int k = 0; k < 64; k++)
+				t[64*j + k] = data[64*64*i + 64*j + k];
 
-		unsigned int nConvexHulls = hacd->GetNConvexHulls();
-		VHACD::IVHACD::ConvexHull convexHull;
-		for (unsigned int ch = 0; ch < nConvexHulls; ch++)
-		{
-			hacd->GetConvexHull(ch, convexHull);
-			unsigned int nDoubles = convexHull.m_nPoints * 3;
-			std::cout<< ch << " " << convexHull.m_nPoints << std::endl;
-
-			// Calculate centroid (center of mass)
-			btVector3 centroid(0,0,0);
-			for (unsigned int i = 0; i < nDoubles; i += 3)
-				centroid += btVector3((btScalar)convexHull.m_points[i],
-									  (btScalar)convexHull.m_points[i + 1],
-						  			  (btScalar)convexHull.m_points[i + 2]);
-			centroid /= (btScalar)convexHull.m_nPoints;
-			if (ch == 0)
-				fcentroid = centroid;
-
-			// Create convex shape
-			// Adjust points such that the centroid is at (0,0,0)
-			btConvexHullShape* convexShape  = new btConvexHullShape();
-			for (unsigned int i = 0; i < nDoubles; i += 3)
-			{
-				btVector3 point(
-					(btScalar)convexHull.m_points[i],
-					(btScalar)convexHull.m_points[i + 1],
-					(btScalar)convexHull.m_points[i + 2]);
-				point -= centroid;
-				convexShape->addPoint(point, false);
-			}
-			convexShape->recalcLocalAabb();
-			m_collisionShapes.push_back(convexShape);
-
-			// Append to the compound shape
-			btTransform transform;
-			transform.setIdentity();
-			transform.setOrigin(centroid - fcentroid);
-			compoundShape->addChildShape(transform, convexShape);
-
-			// Also create a separate body for each convex shape
-			// transform.setIdentity();
-			// transform.setOrigin(btVector3(0,0,0));// + centroid);
-			// createRigidBody(0.1f, transform, convexShape);
-		}
-
-		m_collisionShapes.push_back(compoundShape);
-		btTransform tf;
-		tf.setIdentity();
-		tf.setOrigin(btVector3(0,10,0));
-		createRigidBody(1.0 , tf, compoundShape);
+		for (int j = 0; j < 64; j++)
+			for (int k = 0; k < 64; k++)
+				data[64*64*i + 64*j + k] = t[64*k + j];
 	}
-
-	hacd->Clean();
-	hacd->Release();
 }
 
+void fill_pos(char* data, vector<btVector3> &pos)
+{
+	pos.clear();
 
-const int CUBES = 154;
-btVector3 pos[CUBES] = {
-btVector3(0, 0, 0),
-btVector3(0, 0, 1),
-btVector3(0, 0, 2),
-btVector3(0, 0, 3),
-btVector3(0, 0, 4),
-btVector3(0, 0, 5),
-btVector3(0, 0, 6),
-btVector3(0, 0, 7),
-btVector3(0, 0, 8),
-btVector3(0, 0, 9),
-btVector3(1, 0, 0),
-btVector3(1, 0, 1),
-btVector3(1, 0, 2),
-btVector3(1, 0, 3),
-btVector3(1, 0, 4),
-btVector3(1, 0, 5),
-btVector3(1, 0, 6),
-btVector3(1, 0, 7),
-btVector3(1, 0, 8),
-btVector3(1, 0, 9),
-btVector3(2, 0, 0),
-btVector3(2, 0, 1),
-btVector3(2, 0, 2),
-btVector3(2, 0, 3),
-btVector3(2, 0, 4),
-btVector3(2, 0, 5),
-btVector3(2, 0, 6),
-btVector3(2, 0, 7),
-btVector3(2, 0, 8),
-btVector3(2, 0, 9),
-btVector3(3, -8, 5),
-btVector3(3, -8, 6),
-btVector3(3, -8, 7),
-btVector3(3, -8, 8),
-btVector3(3, -7, 5),
-btVector3(3, -7, 6),
-btVector3(3, -7, 7),
-btVector3(3, -7, 8),
-btVector3(3, -6, 5),
-btVector3(3, -6, 6),
-btVector3(3, -6, 7),
-btVector3(3, -6, 8),
-btVector3(3, -5, 5),
-btVector3(3, -5, 6),
-btVector3(3, -5, 7),
-btVector3(3, -5, 8),
-btVector3(3, -4, 5),
-btVector3(3, -4, 6),
-btVector3(3, -4, 7),
-btVector3(3, -4, 8),
-btVector3(3, -3, 5),
-btVector3(3, -3, 6),
-btVector3(3, -3, 7),
-btVector3(3, -3, 8),
-btVector3(3, -2, 5),
-btVector3(3, -2, 6),
-btVector3(3, -2, 7),
-btVector3(3, -2, 8),
-btVector3(3, -1, 5),
-btVector3(3, -1, 6),
-btVector3(3, -1, 7),
-btVector3(3, -1, 8),
-btVector3(3, 0, 0),
-btVector3(3, 0, 1),
-btVector3(3, 0, 2),
-btVector3(3, 0, 3),
-btVector3(3, 0, 4),
-btVector3(3, 0, 5),
-btVector3(3, 0, 6),
-btVector3(3, 0, 7),
-btVector3(3, 0, 8),
-btVector3(3, 0, 9),
-btVector3(4, -8, 5),
-btVector3(4, -8, 6),
-btVector3(4, -8, 7),
-btVector3(4, -8, 8),
-btVector3(4, -7, 5),
-btVector3(4, -7, 6),
-btVector3(4, -7, 7),
-btVector3(4, -7, 8),
-btVector3(4, -6, 5),
-btVector3(4, -6, 6),
-btVector3(4, -6, 7),
-btVector3(4, -6, 8),
-btVector3(4, -5, 5),
-btVector3(4, -5, 6),
-btVector3(4, -5, 7),
-btVector3(4, -5, 8),
-btVector3(4, -4, 5),
-btVector3(4, -4, 6),
-btVector3(4, -4, 7),
-btVector3(4, -4, 8),
-btVector3(4, -3, 5),
-btVector3(4, -3, 6),
-btVector3(4, -3, 7),
-btVector3(4, -3, 8),
-btVector3(4, -2, 5),
-btVector3(4, -2, 6),
-btVector3(4, -2, 7),
-btVector3(4, -2, 8),
-btVector3(4, -1, 5),
-btVector3(4, -1, 6),
-btVector3(4, -1, 7),
-btVector3(4, -1, 8),
-btVector3(4, 0, 0),
-btVector3(4, 0, 1),
-btVector3(4, 0, 2),
-btVector3(4, 0, 3),
-btVector3(4, 0, 4),
-btVector3(4, 0, 5),
-btVector3(4, 0, 6),
-btVector3(4, 0, 7),
-btVector3(4, 0, 8),
-btVector3(4, 0, 9),
-btVector3(5, 0, 0),
-btVector3(5, 0, 1),
-btVector3(5, 0, 2),
-btVector3(5, 0, 3),
-btVector3(5, 0, 4),
-btVector3(5, 0, 5),
-btVector3(5, 0, 6),
-btVector3(5, 0, 7),
-btVector3(5, 0, 8),
-btVector3(5, 0, 9),
-btVector3(6, 0, 0),
-btVector3(6, 0, 1),
-btVector3(6, 0, 2),
-btVector3(6, 0, 3),
-btVector3(6, 0, 4),
-btVector3(6, 0, 5),
-btVector3(6, 0, 6),
-btVector3(6, 0, 7),
-btVector3(6, 0, 8),
-btVector3(6, 0, 9),
-btVector3(7, 0, 0),
-btVector3(7, 0, 1),
-btVector3(7, 0, 2),
-btVector3(7, 0, 3),
-btVector3(7, 0, 4),
-btVector3(7, 0, 5),
-btVector3(7, 0, 6),
-btVector3(7, 0, 7),
-btVector3(7, 0, 8),
-btVector3(7, 0, 9),
-btVector3(8, 0, 0),
-btVector3(8, 0, 1),
-btVector3(8, 0, 2),
-btVector3(8, 0, 3),
-btVector3(8, 0, 4),
-btVector3(8, 0, 5),
-btVector3(8, 0, 6),
-btVector3(8, 0, 7),
-btVector3(8, 0, 8),
-btVector3(8, 0, 9),
-};
+	for (int i = 0; i < 64; i++)
+		for (int j = 0; j < 64; j++)
+			for (int k = 0; k < 64; k++)
+				if (data[64*64*i + 64*j + k] == 1)
+					pos.push_back(btVector3(i, j, k));
+
+	btVector3 first = pos[0];
+	for (int i = 0; i < pos.size(); i++)
+		pos[i] -= first;
+}
 
 
 void SimpleBoxExample::initPhysics()
@@ -295,20 +119,21 @@ void SimpleBoxExample::initPhysics()
 	if (m_dynamicsWorld->getDebugDrawer())
 		m_dynamicsWorld->getDebugDrawer()->setDebugMode(btIDebugDraw::DBG_DrawWireframe+btIDebugDraw::DBG_DrawContactPoints);
 
-	// /create a few basic rigid bodies
-	btBoxShape* groundShape = createBoxShape(btVector3(btScalar(50.),btScalar(50.),btScalar(50.)));
+	btStaticPlaneShape*  groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
 	m_collisionShapes.push_back(groundShape);
 
 	btTransform groundTransform;
 	groundTransform.setIdentity();
-	groundTransform.setOrigin(btVector3(0,-50,0)); 
+	groundTransform.setOrigin(btVector3(0, 0, 0)); 
 	{
 		btScalar mass(0.);
-		createRigidBody(mass,groundTransform,groundShape, btVector4(0,0,1,1));
+		createRigidBody(mass, groundTransform, groundShape);
 	}
 
-	// doConvexDecomposition(&gVerticesTABLE[0], 3, TABLE_NUM_VERTICES,
-	// 		gIndicesTABLE[0], 3, TABLE_NUM_TRIANGLES);
+	vector<btVector3> pos;
+	char data[64*64*64];
+	read_binvox("table0.binvox", data);
+	fill_pos(data, pos);
 
 	{
 		btCompoundShape* c1 = new btCompoundShape(), *c2 = new btCompoundShape();
@@ -316,16 +141,15 @@ void SimpleBoxExample::initPhysics()
 		m_collisionShapes.push_back(cube);
 		btTransform transform;
 		
-		for (int i = 0; i < CUBES; i++)
+		for (int i = 0; i < pos.size(); i++)
 		{
 			transform.setIdentity();
 			transform.setOrigin(pos[i]);
 			c1->addChildShape(transform, cube);
 		}
 
-
-		btScalar masses[CUBES];
-		for (int i = 0; i < CUBES; i++) masses[i] = 1.0;
+		btScalar masses[pos.size()];
+		for (int i = 0; i < pos.size(); i++) masses[i] = 1.0;
 		
 		btTransform principal;
 		btVector3 inertia;
@@ -338,8 +162,18 @@ void SimpleBoxExample::initPhysics()
 		delete c1;
 
 		transform.setIdentity();
-		transform.setOrigin(btVector3(0, 10, 0));
-		createRigidBody(1.0, transform, c2);
+		btRigidBody* bbb = createRigidBody(1.0, transform, c2);
+
+		btVector3 aabbmin, aabbmax;
+		bbb->getAabb(aabbmin, aabbmax);
+		cout<<aabbmin.getX()<<" "<<aabbmin.getY()<<" "<<aabbmin.getZ()<<" "<<endl;
+		cout<<aabbmax.getX()<<" "<<aabbmax.getY()<<" "<<aabbmax.getZ()<<" "<<endl;
+
+		bbb->translate(btVector3(0, -aabbmin.getY(), 0));
+
+		bbb->getAabb(aabbmin, aabbmax);
+		cout<<aabbmin.getX()<<" "<<aabbmin.getY()<<" "<<aabbmin.getZ()<<" "<<endl;
+		cout<<aabbmax.getX()<<" "<<aabbmax.getY()<<" "<<aabbmax.getZ()<<" "<<endl;
 	}
 
 	m_guiHelper->autogenerateGraphicsObjects(m_dynamicsWorld);
