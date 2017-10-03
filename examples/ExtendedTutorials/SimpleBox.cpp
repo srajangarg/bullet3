@@ -311,48 +311,35 @@ void SimpleBoxExample::initPhysics()
 	// 		gIndicesTABLE[0], 3, TABLE_NUM_TRIANGLES);
 
 	{
-		btCompoundShape* compoundShape = new btCompoundShape();
+		btCompoundShape* c1 = new btCompoundShape(), *c2 = new btCompoundShape();
 		btBoxShape* cube  = new btBoxShape(btVector3(0.5, 0.5, 0.5));
 		m_collisionShapes.push_back(cube);
 		btTransform transform;
 		
-		// for (int i = 0; i < CUBES; i++)
-		// {
-		transform.setIdentity();
-		transform.setOrigin(btVector3(0, 0, 0));
-		compoundShape->addChildShape(transform, cube);
+		for (int i = 0; i < CUBES; i++)
+		{
+			transform.setIdentity();
+			transform.setOrigin(pos[i]);
+			c1->addChildShape(transform, cube);
+		}
 
-		transform.setIdentity();
-		transform.setOrigin(btVector3(0, 1, 0));
-		compoundShape->addChildShape(transform, cube);
 
-		transform.setIdentity();
-		transform.setOrigin(btVector3(0, 2, 0));
-		compoundShape->addChildShape(transform, cube);
-
-		transform.setIdentity();
-		transform.setOrigin(btVector3(0, 1, 1));
-		compoundShape->addChildShape(transform, cube);
-
+		btScalar masses[CUBES];
+		for (int i = 0; i < CUBES; i++) masses[i] = 1.0;
+		
+		btTransform principal;
+		btVector3 inertia;
+		c1->calculatePrincipalAxisTransform(masses, principal, inertia);
+		m_collisionShapes.push_back(c2);
+		
+		for (int i=0;i<c1->getNumChildShapes();i++)
+			c2->addChildShape(c1->getChildTransform(i)*principal.inverse(),
+									 c1->getChildShape(i));
+		delete c1;
 
 		transform.setIdentity();
 		transform.setOrigin(btVector3(0, 10, 0));
-		btScalar masses[4]={1,1,1,1};
-		btTransform principal;
-		btVector3 inertia;
-		compoundShape->calculatePrincipalAxisTransform(masses,principal,inertia);
-		btCompoundShape* compound2 = new btCompoundShape();
-		m_collisionShapes.push_back(compound2);
-#if 0
-		compound2->addChildShape(principal.inverse(), compoundShape);
-#else	
-		for (int i=0;i<compoundShape->getNumChildShapes();i++)
-		{
-			compound2->addChildShape(compoundShape->getChildTransform(i)*principal.inverse(),compoundShape->getChildShape(i));
-		}
-#endif
-		delete compoundShape;
-		createRigidBody(1.0 , transform, compound2);
+		createRigidBody(1.0, transform, c2);
 	}
 
 	m_guiHelper->autogenerateGraphicsObjects(m_dynamicsWorld);
