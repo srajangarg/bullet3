@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 
 	vector<vector<btVector3>> pos;
 	char data[64*64*64];
-	read_binvox("sep.binvox", data);
+	read_binvox("table2.binvox", data);
 	fill_pos(data, pos);
 	btBoxShape* cube  = new btBoxShape(btVector3(0.5, 0.5, 0.5));
 	colShapes.push_back(cube);
@@ -186,36 +186,63 @@ int main(int argc, char** argv)
 									 c1->getChildShape(i));
 		delete c1;
 
-		// for (int i = 0; i < pos.size(); i++)
-		// {
-		// 	btTransform trs = c2->getChildTransform(i) * principal;
-		// 	btVector3 tem = trs * pos[i];
-		// 	cout<<tem.getX()<<" "<<tem.getY()<<" "<<tem.getZ()<<" "<<endl;
-		// }
 		transform.setIdentity();
 		transform.setOrigin(principal[k] * (first[k] + btVector3(0.5, 0.5, 0.5)));
 		rbodies[k] = add_rigid_body(c2, 1.0, transform, dynamicsWorld);
 		cbodies[k] = c2;
 	}
-		
-	///-----stepsimulation_start-----
-	for (int i = 0; i < 100; i++)
-	{
-		// btCompoundShape* q = 
-		// btVector3 q = rbodies[0]->getCollisionShape()->getChildTransform(0) * principal * pos[0][0];
-		btTransform trans;
-		rbodies[1]->getMotionState()->getWorldTransform(trans);
-		
+	
 
-		btVector3 q = (inv[1] * trans * cbodies[1]->getChildTransform(0) * principal[1]).getOrigin();
-		// btVector3 q = trans.getOrigin();
+	int N = dynamicsWorld->getNumCollisionObjects();
 
-		cout<<q.getX()<<" "<<q.getY()<<" "<<q.getZ()<<" "<<endl;
-		dynamicsWorld->stepSimulation(1.f / 10.f, 50);
+	vector<vector<btVector3>> initPos(rbodies.size());
+	for (int j = 0; j < rbodies.size(); j++)
+	{	
+		initPos[j].resize(pos[j].size());
+		for (int i = 0; i < pos[j].size(); i++)
+		{
+			btTransform trans;
+			rbodies[j]->getMotionState()->getWorldTransform(trans);
+			initPos[j][i] = (inv[j] * trans * cbodies[j]->getChildTransform(i) * principal[j]).getOrigin();			
+		}
 	}
 
+	///-----stepsimulation_start-----
+	for (int i = 0; ; i++)
+	{
+		int count = 0;
+
+		for (int j = 0; j < N; j++)
+		{
+			btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[j];
+			if (obj->getActivationState() == ISLAND_SLEEPING)
+				count++;
+		}
+
+		if (count == N)
+			break;
+
+		dynamicsWorld->stepSimulation(1.f / 50.f, 100);
+	}
+
+	btScalar score = 0, num = 0;
+	for (int j = 0; j < rbodies.size(); j++)
+	{	
+		initPos[j].resize(pos[j].size());
+		for (int i = 0; i < pos[j].size(); i++)
+		{
+			btTransform trans;
+			rbodies[j]->getMotionState()->getWorldTransform(trans);
+			btVector3 finalPos = (inv[j] * trans * cbodies[j]->getChildTransform(i) * principal[j]).getOrigin();
+			score += (initPos[j][i] - finalPos).length();
+			num += 1;			
+		}
+	}
+
+	printf("%.2f\n", score/num);
+
 	//remove the rigidbodies from the dynamics world and delete them
-	for (int i = dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
+	for (int i = N - 1; i >= 0; i--)
 	{
 		btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[i];
 		btRigidBody* body = btRigidBody::upcast(obj);
