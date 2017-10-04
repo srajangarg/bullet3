@@ -27,7 +27,6 @@ subject to the following restrictions:
 #include "../SoftDemo/BunnyMesh.h"
 // #include "../SoftDemo/TorusMesh.h"
 #include "../SoftDemo/Table.h"
-#include "../SoftDemo/TableOg.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
