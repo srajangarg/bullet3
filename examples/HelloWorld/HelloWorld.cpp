@@ -16,8 +16,114 @@ subject to the following restrictions:
 ///-----includes_start-----
 #include "btBulletDynamicsCommon.h"
 #include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <queue>
+using namespace std;
 
-/// This is a Hello World program for running a basic Bullet physics simulation
+vector<btVector3> first;
+vector<btTransform> principal, inv;
+vector<btRigidBody*> rbodies;
+vector<btCompoundShape*> cbodies;
+
+void read_binvox(string file, char* data)
+{
+	ifstream infile(file.c_str());
+	infile.seekg(0, ios::end);
+	size_t file_size_in_byte = infile.tellg();
+	infile.seekg(0, ios::beg);
+
+	string line;
+	for (int i = 0; i < 5; i++)
+		getline(infile, line);
+	file_size_in_byte -= infile.tellg();
+
+	char* buf = new char[file_size_in_byte];
+	infile.read(buf, file_size_in_byte);
+
+	int run = 0;
+	for (int i = 0; i < file_size_in_byte; i += 2)
+		for (int j = 0; j < (unsigned char)buf[i+1]; j++)
+			data[run++] = (unsigned char)buf[i];
+
+	char t[64 * 64];
+
+	for (int i = 0; i < 64; i++)
+	{
+		for (int j = 0; j < 64; j++)
+			for (int k = 0; k < 64; k++)
+				t[64*j + k] = data[64*64*i + 64*j + k];
+
+		for (int j = 0; j < 64; j++)
+			for (int k = 0; k < 64; k++)
+				data[64*64*i + 64*j + k] = t[64*k + j];
+	}
+}
+
+void bfs(int ii, int jj, int kk, char* data, vector<btVector3>&arr)
+{
+	queue<vector<int>> q;
+	q.push({ii, jj, kk});
+
+	while (not q.empty())
+	{
+		vector<int> v = q.front();
+		q.pop();
+		int i = v[0], j = v[1], k = v[2];
+
+		if(i < 0 or j < 0 or k < 0 or i >= 64 or j >= 64 or k >= 64)
+            continue;
+        if (data[64*64*i + 64*j + k] == 0)
+            continue;
+
+        data[64*64*i + 64*j + k] = 0;
+        arr.push_back(btVector3(i, j, k));
+
+        q.push({i + 1, j, k});
+        q.push({i - 1, j, k});
+        q.push({i, j + 1, k});
+        q.push({i, j - 1, k});
+        q.push({i, j, k + 1});
+        q.push({i, j, k - 1});
+	}
+
+}
+
+void fill_pos(char* data, vector<vector<btVector3>> &pos)
+{
+	pos.clear();
+
+	for (int i = 0; i < 64; i++)
+		for (int j = 0; j < 64; j++)
+			for (int k = 0; k < 64; k++)
+				if (data[64*64*i + 64*j + k] == 1)
+				{
+					pos.push_back(vector<btVector3>());
+					bfs(i, j, k, data, pos[pos.size()-1]);
+
+					first.push_back(pos[pos.size()-1][0]);
+					for (int i = 0; i < pos[pos.size()-1].size(); i++)
+						pos[pos.size()-1][i] -= first[first.size()-1];
+				}	
+}
+
+
+btRigidBody* add_rigid_body(btCollisionShape* col, btScalar mass, 
+	                        btTransform& transform, btDiscreteDynamicsWorld* world)
+{
+	btVector3 localInertia(0, 0, 0);
+	if (mass != 0.f)
+		col->calculateLocalInertia(mass, localInertia);
+
+	btDefaultMotionState* ms = new btDefaultMotionState(transform);
+	btRigidBody::btRigidBodyConstructionInfo cInfo(mass, ms, col, localInertia);
+	cInfo.m_friction = 1.5;
+	btRigidBody* body = new btRigidBody(cInfo);
+	world->addRigidBody(body);
+
+	return body;
+}
 
 int main(int argc, char** argv)
 {
@@ -27,7 +133,7 @@ int main(int argc, char** argv)
 	btBroadphaseInterface* brdPhse = new btDbvtBroadphase();
 	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 	btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, brdPhse, solver, colCfg);
-	dynamicsWorld->setGravity(btVector3(0, -100, 0));
+	dynamicsWorld->setGravity(btVector3(0, -10, 0));
 	///-----initialization_end-----
 
 	//keep track of the shapes, we release memory at exit.
@@ -42,75 +148,71 @@ int main(int argc, char** argv)
 		btTransform groundTransform;
 		groundTransform.setIdentity();
 		groundTransform.setOrigin(btVector3(0, 0, 0)); 
-		btVector3 localInertia(0, 0, 0);
-
-		btDefaultMotionState* myMotionState = new btDefaultMotionState(groundTransform);
-
-		btRigidBody::btRigidBodyConstructionInfo cInfo(0.0, myMotionState, groundShape, localInertia);
-		btRigidBody* body = new btRigidBody(cInfo);
-		dynamicsWorld->addRigidBody(body);
+		add_rigid_body(groundShape, 0.0, groundTransform, dynamicsWorld);
 	}
 
+	vector<vector<btVector3>> pos;
+	char data[64*64*64];
+	read_binvox("sep.binvox", data);
+	fill_pos(data, pos);
+	btBoxShape* cube  = new btBoxShape(btVector3(0.5, 0.5, 0.5));
+	colShapes.push_back(cube);
+
+	btVector3 inertia;
+	principal.resize(pos.size()); inv.resize(pos.size());
+	rbodies.resize(pos.size()); cbodies.resize(pos.size());
+
+	for (int k = 0; k < pos.size(); k++)
 	{
-		//create a dynamic rigidbody
-
-		//btCollisionShape* colShape = new btBoxShape(btVector3(1,1,1));
-		btCollisionShape* colShape = new btSphereShape(btScalar(1.));
-		colShapes.push_back(colShape);
-
-		/// Create Dynamic Objects
-		btTransform startTransform;
-		startTransform.setIdentity();
-
-		btScalar mass(1.f);
-
-		//rigidbody is dynamic if and only if mass is non zero, otherwise static
-		bool isDynamic = (mass != 0.f);
-
-		btVector3 localInertia(0, 0, 0);
-		if (isDynamic)
-			colShape->calculateLocalInertia(mass, localInertia);
-
-		startTransform.setOrigin(btVector3(2, 20, 0));
-
-		//using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
-		btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
-		btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, colShape, localInertia);
-		btRigidBody* body = new btRigidBody(rbInfo);
-
-		dynamicsWorld->addRigidBody(body);
-	}
-
-	/// Do some simulation
-
-	///-----stepsimulation_start-----
-	for (int i = 0; i < 50; i++)
-	{
-		dynamicsWorld->stepSimulation(1.f / 60.f, 10);
-
-		//print positions of all objects
-		for (int j = dynamicsWorld->getNumCollisionObjects() - 1; j >= 0; j--)
+		btCompoundShape* c1 = new btCompoundShape(), *c2 = new btCompoundShape();
+		btTransform transform;
+		
+		for (int i = 0; i < pos[k].size(); i++)
 		{
-			btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[j];
-			btRigidBody* body = btRigidBody::upcast(obj);
-			btTransform trans;
-			if (body && body->getMotionState())
-			{
-				body->getMotionState()->getWorldTransform(trans);
-			}
-			else
-			{
-				trans = obj->getWorldTransform();
-			}
-			printf("world pos object %d = %f,%f,%f\n", j, float(trans.getOrigin().getX()), float(trans.getOrigin().getY()), float(trans.getOrigin().getZ()));
+			transform.setIdentity();
+			transform.setOrigin(pos[k][i]);
+			c1->addChildShape(transform, cube);
 		}
+
+		btScalar masses[pos[k].size()];
+		for (int i = 0; i < pos[k].size(); i++) masses[i] = 1.0;
+		
+		c1->calculatePrincipalAxisTransform(masses, principal[k], inertia);
+		inv[k] = principal[k].inverse();
+		colShapes.push_back(c2);
+		
+		for (int i = 0; i < c1->getNumChildShapes(); i++)
+			c2->addChildShape(c1->getChildTransform(i) * inv[k],
+									 c1->getChildShape(i));
+		delete c1;
+
+		// for (int i = 0; i < pos.size(); i++)
+		// {
+		// 	btTransform trs = c2->getChildTransform(i) * principal;
+		// 	btVector3 tem = trs * pos[i];
+		// 	cout<<tem.getX()<<" "<<tem.getY()<<" "<<tem.getZ()<<" "<<endl;
+		// }
+		transform.setIdentity();
+		transform.setOrigin(principal[k] * (first[k] + btVector3(0.5, 0.5, 0.5)));
+		rbodies[k] = add_rigid_body(c2, 1.0, transform, dynamicsWorld);
+		cbodies[k] = c2;
 	}
+		
+	///-----stepsimulation_start-----
+	for (int i = 0; i < 100; i++)
+	{
+		// btCompoundShape* q = 
+		// btVector3 q = rbodies[0]->getCollisionShape()->getChildTransform(0) * principal * pos[0][0];
+		btTransform trans;
+		rbodies[1]->getMotionState()->getWorldTransform(trans);
+		
 
-	///-----stepsimulation_end-----
+		btVector3 q = (inv[1] * trans * cbodies[1]->getChildTransform(0) * principal[1]).getOrigin();
+		// btVector3 q = trans.getOrigin();
 
-	//cleanup in the reverse order of creation/initialization
-
-	///-----cleanup_start-----
+		cout<<q.getX()<<" "<<q.getY()<<" "<<q.getZ()<<" "<<endl;
+		dynamicsWorld->stepSimulation(1.f / 10.f, 50);
+	}
 
 	//remove the rigidbodies from the dynamics world and delete them
 	for (int i = dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
@@ -118,35 +220,16 @@ int main(int argc, char** argv)
 		btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[i];
 		btRigidBody* body = btRigidBody::upcast(obj);
 		if (body && body->getMotionState())
-		{
 			delete body->getMotionState();
-		}
 		dynamicsWorld->removeCollisionObject(obj);
 		delete obj;
 	}
 
-	//delete collision shapes
 	for (int j = 0; j < colShapes.size(); j++)
-	{
-		btCollisionShape* shape = colShapes[j];
-		colShapes[j] = 0;
-		delete shape;
-	}
-
-	//delete dynamics world
+		delete colShapes[j];
 	delete dynamicsWorld;
-
-	//delete solver
 	delete solver;
-
-	//delete broadphase
 	delete brdPhse;
-
-	//delete dispatcher
 	delete dispatcher;
-
 	delete colCfg;
-
-	//next line is optional: it will be cleared by the destructor when the array goes out of scope
-	colShapes.clear();
 }

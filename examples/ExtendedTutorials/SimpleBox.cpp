@@ -31,6 +31,7 @@ subject to the following restrictions:
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <queue>
 using namespace std;
 
 
@@ -50,10 +51,14 @@ struct SimpleBoxExample : public CommonRigidBodyBase
 		float dist = 60;
 		float pitch = -35;
 		float yaw = 52;
-		float targetPos[3]={0,0,0};
+		float targetPos[3]={32,32,0};
 		m_guiHelper->resetCamera(dist,yaw,pitch,targetPos[0],targetPos[1],targetPos[2]);
 	}
 };
+
+
+vector<btVector3> first;
+vector<btTransform> principal, inv;
 
 void read_binvox(string file, char* data)
 {
@@ -92,7 +97,36 @@ void read_binvox(string file, char* data)
 	}
 }
 
-void fill_pos(char* data, vector<btVector3> &pos)
+void bfs(int ii, int jj, int kk, char* data, vector<btVector3>&arr)
+{
+	queue<vector<int>> q;
+	q.push({ii, jj, kk});
+
+	while (not q.empty())
+	{
+		vector<int> v = q.front();
+		q.pop();
+		int i = v[0], j = v[1], k = v[2];
+
+		if(i < 0 or j < 0 or k < 0 or i >= 64 or j >= 64 or k >= 64)
+            continue;
+        if (data[64*64*i + 64*j + k] == 0)
+            continue;
+
+        data[64*64*i + 64*j + k] = 0;
+        arr.push_back(btVector3(i, j, k));
+
+        q.push({i + 1, j, k});
+        q.push({i - 1, j, k});
+        q.push({i, j + 1, k});
+        q.push({i, j - 1, k});
+        q.push({i, j, k + 1});
+        q.push({i, j, k - 1});
+	}
+
+}
+
+void fill_pos(char* data, vector<vector<btVector3>> &pos)
 {
 	pos.clear();
 
@@ -100,11 +134,14 @@ void fill_pos(char* data, vector<btVector3> &pos)
 		for (int j = 0; j < 64; j++)
 			for (int k = 0; k < 64; k++)
 				if (data[64*64*i + 64*j + k] == 1)
-					pos.push_back(btVector3(i, j, k));
+				{
+					pos.push_back(vector<btVector3>());
+					bfs(i, j, k, data, pos[pos.size()-1]);
 
-	btVector3 first = pos[0];
-	for (int i = 0; i < pos.size(); i++)
-		pos[i] -= first;
+					first.push_back(pos[pos.size()-1][0]);
+					for (int i = 0; i < pos[pos.size()-1].size(); i++)
+						pos[pos.size()-1][i] -= first[first.size()-1];
+				}	
 }
 
 
@@ -130,50 +167,56 @@ void SimpleBoxExample::initPhysics()
 		createRigidBody(mass, groundTransform, groundShape);
 	}
 
-	vector<btVector3> pos;
+	vector<vector<btVector3>> pos;
 	char data[64*64*64];
-	read_binvox("table0.binvox", data);
+	read_binvox("sep.binvox", data);
 	fill_pos(data, pos);
+	btBoxShape* cube  = new btBoxShape(btVector3(0.5, 0.5, 0.5));
+	m_collisionShapes.push_back(cube);
 
+	btVector3 inertia;
+	principal.resize(pos.size());
+	inv.resize(pos.size());
+
+	for (int k = 0; k < pos.size(); k++)
 	{
 		btCompoundShape* c1 = new btCompoundShape(), *c2 = new btCompoundShape();
-		btBoxShape* cube  = new btBoxShape(btVector3(0.5, 0.5, 0.5));
-		m_collisionShapes.push_back(cube);
 		btTransform transform;
 		
-		for (int i = 0; i < pos.size(); i++)
+		for (int i = 0; i < pos[k].size(); i++)
 		{
 			transform.setIdentity();
-			transform.setOrigin(pos[i]);
+			transform.setOrigin(pos[k][i]);
 			c1->addChildShape(transform, cube);
 		}
 
-		btScalar masses[pos.size()];
-		for (int i = 0; i < pos.size(); i++) masses[i] = 1.0;
+		btScalar masses[pos[k].size()];
+		for (int i = 0; i < pos[k].size(); i++) masses[i] = 1.0;
 		
-		btTransform principal;
-		btVector3 inertia;
-		c1->calculatePrincipalAxisTransform(masses, principal, inertia);
+		c1->calculatePrincipalAxisTransform(masses, principal[k], inertia);
+		inv[k] = principal[k].inverse();
 		m_collisionShapes.push_back(c2);
 		
-		for (int i=0;i<c1->getNumChildShapes();i++)
-			c2->addChildShape(c1->getChildTransform(i)*principal.inverse(),
+		for (int i = 0; i < c1->getNumChildShapes(); i++)
+			c2->addChildShape(c1->getChildTransform(i) * inv[k],
 									 c1->getChildShape(i));
 		delete c1;
 
 		transform.setIdentity();
+		transform.setOrigin(principal[k] * (first[k] + btVector3(0.5, 2.5, 0.5)));
 		btRigidBody* bbb = createRigidBody(1.0, transform, c2);
 
-		btVector3 aabbmin, aabbmax;
-		bbb->getAabb(aabbmin, aabbmax);
-		cout<<aabbmin.getX()<<" "<<aabbmin.getY()<<" "<<aabbmin.getZ()<<" "<<endl;
-		cout<<aabbmax.getX()<<" "<<aabbmax.getY()<<" "<<aabbmax.getZ()<<" "<<endl;
+		// btVector3 aabbmin, aabbmax;
+		// bbb->getAabb(aabbmin, aabbmax);
+		// cout<<aabbmin.getX()<<" "<<aabbmin.getY()<<" "<<aabbmin.getZ()<<" "<<endl;
+		// cout<<aabbmax.getX()<<" "<<aabbmax.getY()<<" "<<aabbmax.getZ()<<" "<<endl;
 
-		bbb->translate(btVector3(0, -aabbmin.getY(), 0));
-
-		bbb->getAabb(aabbmin, aabbmax);
-		cout<<aabbmin.getX()<<" "<<aabbmin.getY()<<" "<<aabbmin.getZ()<<" "<<endl;
-		cout<<aabbmax.getX()<<" "<<aabbmax.getY()<<" "<<aabbmax.getZ()<<" "<<endl;
+		// for (int i = 0; i < pos.size(); i++)
+		// {
+		// 	btTransform trs = c2->getChildTransform(i) * principal;
+		// 	btVector3 tem = trs * pos[i];
+		// 	cout<<tem.getX()<<" "<<tem.getY()<<" "<<tem.getZ()<<" "<<endl;
+		// }
 	}
 
 	m_guiHelper->autogenerateGraphicsObjects(m_dynamicsWorld);

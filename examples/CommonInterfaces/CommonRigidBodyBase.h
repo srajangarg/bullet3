@@ -12,6 +12,9 @@
 #include "CommonGraphicsAppInterface.h"
 #include "CommonWindowInterface.h"
 
+#include <iostream>
+using namespace std;
+
 struct CommonRigidBodyBase : public CommonExampleInterface
 {
 		//keep the collision shapes, for deletion/cleanup
@@ -78,6 +81,18 @@ struct CommonRigidBodyBase : public CommonExampleInterface
 		if (m_dynamicsWorld)
 		{
 			m_dynamicsWorld->stepSimulation(deltaTime);
+
+			// for (int j = m_dynamicsWorld->getNumCollisionObjects() - 1; j >= 0; j--)
+			// {
+			// 	btCollisionObject* obj = m_dynamicsWorld->getCollisionObjectArray()[j];
+			// 	btRigidBody* body = btRigidBody::upcast(obj);
+			// 	btTransform trans;
+			// 	if (body && body->getMotionState())
+			// 	{
+			// 		body->getMotionState()->getWorldTransform(trans);
+			// 		printf("world pos object %d = %f,%f,%f\n", j, float(trans.getOrigin().getX()), float(trans.getOrigin().getY()), float(trans.getOrigin().getZ()));
+			// 	}
+			// }
 		}
 	}
 
@@ -440,7 +455,7 @@ struct CommonRigidBodyBase : public CommonExampleInterface
 		btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
 
 		btRigidBody::btRigidBodyConstructionInfo cInfo(mass, myMotionState, shape, localInertia);
-
+		cInfo.m_friction = 2.0;
 		btRigidBody* body = new btRigidBody(cInfo);
 		//body->setContactProcessingThreshold(m_defaultContactProcessingThreshold);
 
