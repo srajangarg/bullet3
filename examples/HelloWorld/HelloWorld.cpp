@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 
 	vector<vector<btVector3>> pos;
 	char data[64*64*64];
-	read_binvox("table2.binvox", data);
+	read_binvox(string(argv[1]), data);
 	fill_pos(data, pos);
 	btBoxShape* cube  = new btBoxShape(btVector3(0.5, 0.5, 0.5));
 	colShapes.push_back(cube);
