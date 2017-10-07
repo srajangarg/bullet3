@@ -225,10 +225,26 @@ int main(int argc, char** argv)
 		dynamicsWorld->stepSimulation(1.f / 50.f, 100);
 	}
 
+	// btScalar score = 0, num = 0;
+	// for (int j = 0; j < rbodies.size(); j++)
+	// {
+	// 	for (int i = 0; i < pos[j].size(); i++)
+	// 	{
+	// 		btTransform trans;
+	// 		rbodies[j]->getMotionState()->getWorldTransform(trans);
+	// 		btVector3 finalPos = (inv[j] * trans * cbodies[j]->getChildTransform(i) * principal[j]).getOrigin();
+	// 		score += (initPos[j][i] - finalPos).length();
+	// 		num += 1;			
+	// 	}
+	// }
+
+	// printf("%.2f\n", score/num);
+
+	bool unstable = false;
 	btScalar score = 0, num = 0;
 	for (int j = 0; j < rbodies.size(); j++)
 	{	
-		initPos[j].resize(pos[j].size());
+		score = 0; num = 0;
 		for (int i = 0; i < pos[j].size(); i++)
 		{
 			btTransform trans;
@@ -237,9 +253,18 @@ int main(int argc, char** argv)
 			score += (initPos[j][i] - finalPos).length();
 			num += 1;			
 		}
+
+		if (score / num > 0.5)
+		{
+			unstable = true;
+			break;
+		}
 	}
 
-	printf("%.2f\n", score/num);
+	if (unstable)
+		printf("1.0\n");
+	else
+		printf("0.0\n");
 
 	//remove the rigidbodies from the dynamics world and delete them
 	for (int i = N - 1; i >= 0; i--)
