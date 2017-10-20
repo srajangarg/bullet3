@@ -27,6 +27,8 @@ vector<btTransform> principal, inv;
 vector<btRigidBody*> rbodies;
 vector<btCompoundShape*> cbodies;
 
+int dim = 32;
+
 void read_binvox(string file, char* data)
 {
 	ifstream infile(file.c_str());
@@ -47,17 +49,17 @@ void read_binvox(string file, char* data)
 		for (int j = 0; j < (unsigned char)buf[i+1]; j++)
 			data[run++] = (unsigned char)buf[i];
 
-	char t[64 * 64];
+	char t[dim * dim];
 
-	for (int i = 0; i < 64; i++)
+	for (int i = 0; i < dim; i++)
 	{
-		for (int j = 0; j < 64; j++)
-			for (int k = 0; k < 64; k++)
-				t[64*j + k] = data[64*64*i + 64*j + k];
+		for (int j = 0; j < dim; j++)
+			for (int k = 0; k < dim; k++)
+				t[dim*j + k] = data[dim*dim*i + dim*j + k];
 
-		for (int j = 0; j < 64; j++)
-			for (int k = 0; k < 64; k++)
-				data[64*64*i + 64*j + k] = t[64*k + j];
+		for (int j = 0; j < dim; j++)
+			for (int k = 0; k < dim; k++)
+				data[dim*dim*i + dim*j + k] = t[dim*k + j];
 	}
 }
 
@@ -72,12 +74,12 @@ void bfs(int ii, int jj, int kk, char* data, vector<btVector3>&arr)
 		q.pop();
 		int i = v[0], j = v[1], k = v[2];
 
-		if(i < 0 or j < 0 or k < 0 or i >= 64 or j >= 64 or k >= 64)
+		if(i < 0 or j < 0 or k < 0 or i >= dim or j >= dim or k >= dim)
             continue;
-        if (data[64*64*i + 64*j + k] == 0)
+        if (data[dim*dim*i + dim*j + k] == 0)
             continue;
 
-        data[64*64*i + 64*j + k] = 0;
+        data[dim*dim*i + dim*j + k] = 0;
         arr.push_back(btVector3(i, j, k));
 
         q.push({i + 1, j, k});
@@ -94,10 +96,10 @@ void fill_pos(char* data, vector<vector<btVector3>> &pos)
 {
 	pos.clear();
 
-	for (int i = 0; i < 64; i++)
-		for (int j = 0; j < 64; j++)
-			for (int k = 0; k < 64; k++)
-				if (data[64*64*i + 64*j + k] == 1)
+	for (int i = 0; i < dim; i++)
+		for (int j = 0; j < dim; j++)
+			for (int k = 0; k < dim; k++)
+				if (data[dim*dim*i + dim*j + k] == 1)
 				{
 					pos.push_back(vector<btVector3>());
 					bfs(i, j, k, data, pos[pos.size()-1]);
@@ -152,7 +154,7 @@ int main(int argc, char** argv)
 	}
 
 	vector<vector<btVector3>> pos;
-	char data[64*64*64];
+	char data[dim*dim*dim];
 	read_binvox(string(argv[1]), data);
 	fill_pos(data, pos);
 	btBoxShape* cube  = new btBoxShape(btVector3(0.5, 0.5, 0.5));
